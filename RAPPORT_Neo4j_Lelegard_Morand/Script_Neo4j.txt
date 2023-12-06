@@ -1,0 +1,123 @@
+//-------------------------------------------------------------------------------------------------
+// CREATION DES CONTRAINTES
+//-------------------------------------------------------------------------------------------------
+CREATE CONSTRAINT IF NOT EXISTS
+FOR (st:Systeme_stellaire)
+REQUIRE st.Nom IS UNIQUE;
+
+CREATE CONSTRAINT IF NOT EXISTS
+FOR (pl:Planete)
+REQUIRE pl.Nom IS UNIQUE;
+
+CREATE CONSTRAINT IF NOT EXISTS
+FOR (con:Constellation)
+REQUIRE con.Nom IS UNIQUE;
+
+CREATE CONSTRAINT IF NOT EXISTS
+FOR (obs:Observatoire)
+REQUIRE obs.Nom IS UNIQUE;
+
+CREATE CONSTRAINT IF NOT EXISTS
+FOR (spe:Classe_spectrale)
+REQUIRE spe.Code IS UNIQUE;
+
+CREATE CONSTRAINT IF NOT EXISTS
+FOR (hem:Hemisphere)
+REQUIRE hem.Nom IS UNIQUE;
+
+CREATE CONSTRAINT IF NOT EXISTS
+FOR (pay:Pays)
+REQUIRE pay.Nom IS UNIQUE;
+
+CREATE CONSTRAINT IF NOT EXISTS
+FOR (pol:Pollution_lumineuse)
+REQUIRE pol.Level IS UNIQUE;
+
+
+//-----------------------------------------------------------------------------------------------------------------------------------------
+// FICHIER PLANETES + SYSTEME STELLAIRE + CONSTELLATION  ----------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------------------------------------------------------
+LOAD CSV WITH HEADERS FROM 'file:///planetes_avec_repere_cartesien_et_constellations.csv' AS line FIELDTERMINATOR ','
+	//
+	WITH line
+	//LIMIT 500
+	//
+	MERGE (st:Systeme_stellaire{Nom:line.hostname})
+	SET   	st.Hd_name = COALESCE(line.hd_name, 'inconnu'), 
+	      	st.Hip_name = COALESCE(line.hip_name, 'inconnu'), 
+	      	st.Star_number = toInteger(line.sy_snum), 
+	      	st.Masse_ratio = COALESCE(toFloat(line.st_mass), 'inconnu'), 
+	      	st.Rayon_ratio = COALESCE(toFloat(line.st_rad), 'inconnu'), 
+	      	st.Age = COALESCE(toFloat(line.st_age),'inconnu'),
+		st.Dist_Soleil = COALESCE(toFloat(line.sy_dist),'inconnu'),
+                st.x0 = COALESCE(ROUND(toFloat(line.x0), 2),'inconnu'),
+                st.y0 = COALESCE(ROUND(toFloat(line.y0), 2),'inconnu'),
+                st.z0 = COALESCE(ROUND(toFloat(line.z0), 2),'inconnu')
+	MERGE (pl:Planete{Nom:line.pl_name})
+	SET   	pl.Masse_ratio = COALESCE(toFloat(line.pl_bmasse), 'inconnu'),
+	      	pl.Rayon_ratio = COALESCE(toFloat(line.pl_rade), 'inconnu')
+	MERGE (con:Constellation{Nom:line.con})
+	MERGE (obs:Observatoire{Nom:line.disc_facility}) 
+	MERGE (spe:Classe_spectrale{Code:COALESCE(line.st_specclass, 'inconnu')})	
+	//
+	MERGE (pl)-[:TOURNE_AUTOUR {Periode_orbitale:COALESCE(toFloat(line.pl_orbper), 'inconnu')}]->(st)
+	MERGE (st)-[:APPARTIENT_A]->(con)
+	MERGE (obs)-[:A_DECOUVERT {Annee:COALESCE(toInteger(line.disc_year), 'inconnu'),Methode:COALESCE(line.discoverymethod, 'inconnu')}]->(pl)
+	MERGE (st)-[ray:RAYONNE]->(spe)
+	SET   	ray.Subdivision = COALESCE(toFloat(line.st_specsubdiv), 'inconnu'),
+	      	ray.Luminosity = COALESCE(line.st_lumclass, 'inconnu');
+	//
+
+//-----------------------------------------------------------------------------------------------------------------------------------------
+// FICHIER OBSERVATOIRES  -----------------------------------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------------------------------------------------------
+LOAD CSV WITH HEADERS FROM 'file:///Observatoires_consolidés.csv' AS line FIELDTERMINATOR ','
+	//
+	WITH line
+	//
+	MERGE (obs:Observatoire{Nom:line.Observatoire})
+	SET    	obs.Latitude = COALESCE(toFloat(line.Lat_dec), 'inconnu'),
+		obs.Longitude = COALESCE(toFloat(line.Lon_dec), 'inconnu'),
+		obs.Altitude = COALESCE(toFloat(line.Elevation), 'inconnu')
+	MERGE (hem:Hemisphere{Nom:COALESCE(line.Hemisphere, 'inconnu')})
+	MERGE (pay:Pays{Nom:COALESCE(line.Country, 'inconnu')})
+	MERGE (pol:Pollution_lumineuse{Level:COALESCE(line.Light_pollution, 'inconnu')})
+	//
+	MERGE (obs)-[:FAIT_PARTIE_DE]->(pay)
+	MERGE (obs)-[:VOIT]->(pol)
+	MERGE (obs)-[:EST_SITUE_DANS]->(hem);
+
+//-----------------------------------------------------------------------------------------------------------------------------------------
+// FICHIER VISIBILITE CONSTELLATIONS-------------------------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------------------------------------------------------
+LOAD CSV WITH HEADERS FROM 'file:///Visibilité_Constellations.csv' AS line FIELDTERMINATOR ','
+	//
+	WITH line
+	//
+	MERGE (hemN:Hemisphere{Nom:"Nord"})
+	MERGE (hemS:Hemisphere{Nom:"Sud"})
+	MERGE (con:Constellation{Nom:line.Constellation})
+	MERGE (con)<-[:ON_PEUT_VOIR_DEPUIS {Latitude_max:COALESCE(toInteger(line.Visibilite_Nord), 'inconnu')}]-(hemN)
+	MERGE (con)<-[:ON_PEUT_VOIR_DEPUIS {Latitude_min:COALESCE(toInteger(line.Visibilite_Sud), 'inconnu')}]-(hemS);
+//-----------------------------------------------------------------------------------------------------------------------------------------
+//FICHIER CONSTELLATION VOISINES ----------1 RELATION PAR COUPLE DE CONSTELLATION ---------------------------------------------------------
+//-----------------------------------------------------------------------------------------------------------------------------------------
+LOAD CSV WITH HEADERS FROM 'file:///Constellations_voisines_une_seule_relation.csv' AS line FIELDTERMINATOR ','
+	//
+	WITH line
+	MATCH (con1:Constellation{Nom:line.con1})
+	MATCH (con2:Constellation{Nom:line.con2})
+	MERGE (con1)-[:EST_VOISINE_DE]->(con2); 
+//-----------------------------------------------
+//-----------------------------------------------------------------------------------------------------------------------------------------
+// FICHIER DISTANCE ENTRE LES SYSTEMES STELLAIRES -----------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------------------------------------------------------
+:auto LOAD CSV WITH HEADERS FROM 'file:///Distances_systemes.csv' AS line FIELDTERMINATOR '|'
+CALL {
+	WITH line
+	MATCH (s1:Systeme_stellaire{Nom:line.syst1})
+	MATCH (s2:Systeme_stellaire{Nom:line.syst2})
+	MERGE (s1)-[dist:EST_SEPARE_DE]->(s2)
+    SET dist.Distance = toFloat(line.dist)
+} IN TRANSACTIONS OF 50000 ROWS
+//-----------------------------------------------------------------------------------------------------------------------------------------

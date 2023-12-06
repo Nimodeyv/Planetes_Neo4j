@@ -1,0 +1,106 @@
+// REQUETES -------------- REQUETES -------------- REQUETES -------------- REQUETES -------------- REQUETES -------------- REQUETES -------------- REQUETES -
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------------------
+// Requete_1 « Un concours est lancé, le prochain observatoire qui trouvera une nouvelle planète autour d’une étoile de classe spectrale « K0 » gagnera 1 million de dollars ! Quels sont les systèmes que l’observatoire de Haute-Provence doit surveiller pour avoir une chance de gagner ? » 
+// ----------------------------------------------------------------------------------------------------------------------------------------------------------
+
+MATCH (obs:Observatoire{Nom:'Haute-Provence Observatory'})
+WITH obs.Latitude AS Lat_Haute_Provence
+MATCH (obs:Observatoire)-[r1:EST_SITUE_DANS]->(hem:Hemisphere)-[r2:ON_PEUT_VOIR_DEPUIS]->(con:Constellation)<-[r3:APPARTIENT_A]-(st:Systeme_stellaire)-[r4:RAYONNE]->(sp:Classe_spectrale)
+WHERE (obs.Nom = 'Haute-Provence Observatory') AND (sp.Code = 'K') AND (r4.Subdivision = 0.0) AND (r2.Latitude_max > Lat_Haute_Provence)
+RETURN obs,r1,hem,r2,con,r3,st,r4,sp 
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------------------
+// Requete_2 « La course à l’espace est rude parmi les habitants de la Terre, chaque pays cherche à prouver qu’il est le meilleur. Quel pays peut se vanter d’avoir l’observatoire ayant découvert le plus de planètes dans des systèmes stellaires à plus de 2 étoiles ? »
+// ----------------------------------------------------------------------------------------------------------------------------------------------------------
+
+MATCH (pay:Pays)<-[FAIT_PARTIE_DE]-(obs:Observatoire)-[r:A_DECOUVERT]-(pl:Planete)-[:TOURNE_AUTOUR]->(st:Systeme_stellaire)
+WHERE (st.Star_number > 2)
+RETURN obs.Nom, pay.Nom, count(pl) AS nb
+ORDER BY nb DESC
+LIMIT 10
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------------------
+// Requete_3 « Le peuple de planète Nolagua (HD 75784 b) a découvert qu'il y avait de la vie intelligente sur Chetune (TOI-2583 A b). Par peur de perdre leur suprématie militaire sur leur voisinage, ils préfèrent détruire tout ce qui se trouve sur cette malheureuse planète. Cependant, leurs vaisseaux armés sont obligés de faire un plein de carburant tous les 100 parsecs, par quels systèmes doivent il passer pour atteindre leur destination ? »
+// ----------------------------------------------------------------------------------------------------------------------------------------------------------
+
+MATCH ((pl1:Planete{Nom:'HD 75784 b'})-[r1:TOURNE_AUTOUR]->(st1:Systeme_stellaire))
+MATCH ((st2:Systeme_stellaire)<-[r2:TOURNE_AUTOUR]-(pl2:Planete{Nom:'TOI-2583 A b'}))
+MATCH path = shortestPath((st1)-[r3:EST_SEPARE_DE*]-(st2))
+WHERE all(rel in relationships(path) WHERE rel.Distance < 100.0) 
+RETURN pl1,r1,path,pl2,r2,REDUCE(s = 0, rel IN relationships(path) | s + rel.Distance) AS totaldistance
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------------------
+// Requete_4 « Une secte de fanatiques d’astrologie qui ne comporte que des membres de signe Vierge cherche un endroit pour vivre. Il est hors de question d’aller autre-part que sur une planète présente dans la constellation de la Vierge ! Mais est-ce qu’il est possible d’en trouver une qui ne soit pas trop lourde, ni trop légère ? Une gravité proche de la Terre est essentielle pour vivre à la surface. Il faudrait que l’étoile ne soit pas trop lourde non plus, les étoiles légères vivent plus longtemps. »
+// ----------------------------------------------------------------------------------------------------------------------------------------------------------
+
+MATCH (con:Constellation{Nom:'Virgo'})<-[:APPARTIENT_A]-(syst:Systeme_stellaire)<-[tour:TOURNE_AUTOUR]-(p:Planete)
+WHERE p.Masse_ratio <= 2 AND p.Masse_ratio > 0.5 
+Return syst.Nom, syst.Masse_ratio, p.Nom, p.Masse_ratio, tour.Periode_orbitale, con.Nom
+ORDER BY syst.Masse_ratio ASC, p.Masse_ratio ASC
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------------------
+// Requete_5 « Les habitants du système stellaire Koter voient grand. Ils ont besoin de beaucoup d’énergie à cause de la consommation de leurs mineurs de KotCoin. Ils cherchent une planète tournant autour d’une étoile de luminosité V, où il fera bon vivre, avec la contrainte qu’il y ai une géante ou une supergéante dans le voisinage (I, II ou III). Cela permettrait d’y installer une sphère de Dyson suffisamment puissante. Tant qu’à faire, il faudrait que l’étoile en question soit plutôt jeune, pour que ce soit rentable. Les méga-corporations ne voudront jamais payer une sphère pour une étoile en fin de vie. »
+// ----------------------------------------------------------------------------------------------------------------------------------------------------------
+
+MATCH (:Classe_spectrale)<-[ray1:RAYONNE{Luminosity:'V'}]-(s1:Systeme_stellaire)-[d:EST_SEPARE_DE]-(s2:Systeme_stellaire)-[ray2:RAYONNE]->(:Classe_spectrale)
+WHERE ray2.Luminosity = 'I' OR ray2.Luminosity = 'III' OR ray2.Luminosity = 'II'
+RETURN s1.Nom, s2.Nom, ray2.Luminosity, d.Distance, s2.Age
+ORDER BY d.Distance ASC
+LIMIT 10
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------------------
+// Requete_6 « Le peuple terrien cherche à coloniser un nouveau système stellaire. Faisant constat des dégâts qu’il a pu faire dans le système solaire en exploitant toutes ses ressources, la communauté scientifique cherche un système comportant le plus de planètes possibles. Epuiser toutes les ressources présentes prendra plus de temps. Il serait idéal d’avoir une étoile semblable au soleil en terme de taille, une luminosité de V est non négociable pour qu’il y fasse bon vivre. Il faudrait également que l’étoile ne soit pas trop vieille, une géante rouge ne serait pas bon pour le tourisme interstellaire. Est-ce qu’on peut en trouver une qui ne soit pas trop loin de la Terre, pour que le voyage puisse se faire sur un week-end ? »
+// ----------------------------------------------------------------------------------------------------------------------------------------------------------
+
+MATCH (:Classe_spectrale)<-[ray:RAYONNE]-(syst:Systeme_stellaire)<-[tour:TOURNE_AUTOUR]-(p:Planete)
+WITH syst, COUNT(tour) AS nb_p, ray
+WHERE nb_p >= 3 AND syst.Age <> 'inconnu' AND ray.Luminosity = "V"
+RETURN syst.Nom, syst.Age, syst.Dist_Soleil, ray.Luminosity, nb_p
+ORDER BY nb_p DESC, syst.Age ASC, syst.Dist_Soleil ASC
+LIMIT 10
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------------------
+// Requete_7 « La communauté scientifique terrienne observe un phénomène étrange. Une grande masse d’objets mobiles semble se déplacer depuis Nolagua (HD 75784 b). Par quelles constellations les télescopes humains verront passer les vaisseaux armés se dirigeants vers Chetune (TOI-2583 A b) ? »
+// ----------------------------------------------------------------------------------------------------------------------------------------------------------
+
+MATCH ((pl1:Planete{Nom:'HD 75784 b'})-[r1:TOURNE_AUTOUR]-(st1:Systeme_stellaire)-[r11:APPARTIENT_A]-(con1:Constellation))
+MATCH ((con2:Constellation)-[r21:APPARTIENT_A]-(st2:Systeme_stellaire)-[r22:TOURNE_AUTOUR]-(pl2:Planete{Nom:'TOI-2583 A b'}))
+RETURN pl1,r1,st1,r11,pl2,r21,st2,r22,shortestPath((con1)-[:EST_VOISINE_DE*]-(con2))
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------------------
+// Requete_8 «Les élèves du Mastère Spécialisé EBDE à l’UTT souhaitent passer plus de temps sur leurs projets école. Ils ont entendu dire que des fanatiques cherchent à rejoindre la constellation de la Vierge. Est-ce qu’il n’y aurait pas une planète avec une très longue période orbitale autour d’une étoile semblable au Soleil (luminosité V) ? Un mastère Spécialisé d’un an là-bas permettrait de faire beaucoup plus de chose ! Les États-Unis commencent à voir d’un mauvais œil le projet farfelus de la secte et cherchent un observatoire qui pourra surveiller leurs activités. »
+// ----------------------------------------------------------------------------------------------------------------------------------------------------------
+
+MATCH (pays:Pays)<-[fp:FAIT_PARTIE_DE]-(obs:Observatoire)-[sit:EST_SITUE_DANS]->(n:Hemisphere)-[r1:ON_PEUT_VOIR_DEPUIS]->(con:Constellation{Nom:'Virgo'})<-[app:APPARTIENT_A]-(s:Systeme_stellaire)<-[tour:TOURNE_AUTOUR]-(p:Planete)
+MATCH (cl:Classe_spectrale)<-[ray1:RAYONNE{Luminosity:'V'}]-(s:Systeme_stellaire)
+WHERE pays.Nom = "United States"
+RETURN cl,pays,fp,obs,sit,n,r1,con,app,s,tour,p,ray1
+//RETURN pays.Nom,obs.Nom,n.Nom,r1.Latitude_max,con.Nom,s.Nom,tour.Periode_orbitale,p.Nom,ray1.Luminosity
+ORDER BY tour.Periode_orbitale DESC
+LIMIT 1
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------------------
+// Requete_9 « La course à l’espace continue sur Terre. Le président du Chili qui a prouvé sa valeur avec son nombre de planètes dans des systèmes de plus de 2 étoiles, cherche à savoir s’il peut ajouter des arguments supplémentaires. Est-ce qu’il est le premier à avoir découvert une planète dans la constellation visible par le plus de monde sur Terre ? »
+// ----------------------------------------------------------------------------------------------------------------------------------------------------------
+
+MATCH (n:Hemisphere{Nom:"Nord"})-[r1:ON_PEUT_VOIR_DEPUIS]->(con:Constellation)<-[r2:ON_PEUT_VOIR_DEPUIS]-(s:Hemisphere{Nom:'Sud'})
+WITH con, n, r1, s, r2
+ORDER BY r1.Latitude_max DESC, r2.Latitude_min ASC
+LIMIT 1
+MATCH (con)<-[:APPARTIENT_A]-(syst:Systeme_stellaire)<-[:TOURNE_AUTOUR]-(p:Planete)<-[d:A_DECOUVERT]-(obs:Observatoire)-[:FAIT_PARTIE_DE]->(pays:Pays)
+RETURN p.Nom, obs.Nom, pays.Nom, syst.Nom, con.Nom, d.Annee
+ORDER BY d.Annee ASC
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------------------
+// Requete_10 « Faute d’avoir trouvé une planète à leur convenance dans la constellation de la Vierge pour y vivre, la secte de fanatiques revoit ses projets fortement à la baisse (ils ont perdu beaucoup de donateurs après leur dernière mésaventure il faut dire, les finances sont au plus bas). Ne pourraient-ils pas s’installer dans le pays qui a découvert le plus de planètes appartenant à la constellation de la Vierge ? »
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------------------
+MATCH (pay:Pays)<-[FAIT_PARTIE_DE]-(obs:Observatoire)-[r:A_DECOUVERT]-(pl:Planete)-[:TOURNE_AUTOUR]->(st:Systeme_stellaire)-[:APPARTIENT_A]->(con:Constellation)
+WHERE (con.Nom = "Virgo") AND (pay.Nom <> "inconnu")
+RETURN pay.Nom AS Pays_des_observatoires, count(pl) as Nombre_de_découvertes
+ORDER BY Nombre_de_découvertes DESC
+
+
+
+
