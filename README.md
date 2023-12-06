@@ -4,13 +4,14 @@ Nous avons créé ce repository ensemble avec Paul L. dans le cadre de la format
 Nous avons choisi pour ce projet Neo4j d’utiliser les données publiques de la NASA sur les exoplanètes découvertes (confirmées). Il y en a 5539 officielles à ce jour.
 
 
-## Le projet comporte plusieurs étapes:
+## Le projet comporte plusieurs parties:
 1. Recherche et Pré-traitement des données brutes - Planètes_Pré-traitement.ipynb
 2. Définition de la structure de la base de données - Page 6 du rapport Projet_Neo4j_LELEGARD_MORAND.pdf
 3. Ingestion des données dans Neo4j - Script_Neo4j.txt
 4. Requêtes de la base de données  - Requetes_Neo4j.txt
-5. Visualisation du résultat des requêtes - Exoplanet_Viz.ipynb
-La description complète du projet est disponible dans le rapport Projet_Neo4j_LELEGARD_MORAND.pdf. Le modèle Neo4j comporte 9855noeuds et 1 635 303 relations.
+5. Visualisation du résultat des requêtes - Exoplanet_Viz.ipynb  
+
+Pour plus de détail, se rapporter au rapport Projet_Neo4j_LELEGARD_MORAND.pdf, disponible dans ce repository. Le modèle Neo4j comporte 9855 noeuds et 1 635 303 relations.
 
 ---
 
