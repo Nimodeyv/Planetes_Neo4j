@@ -1,6 +1,7 @@
 # Planetes_Neo4j
 
 Nous avons créé ce repository ensemble avec Paul L. dans le cadre de la formation Mastère "Big Data Engineer" de l'Université de Technologie de Troyes.  Ce projet a pour but de batir et d'utiliser une base de données graphes Neo4j. Ce cours était assuré par Jérôme B.
+La version la plus à jour est v4 Rapport.
 Nous avons choisi pour ce projet Neo4j d’utiliser les données publiques de la NASA sur les exoplanètes découvertes (confirmées). Il y en a 5539 officielles à ce jour.
 
 
